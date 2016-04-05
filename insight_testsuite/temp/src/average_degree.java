@@ -3,6 +3,7 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -13,6 +14,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+
+//The graph is stored as a group of nodes. And each node has connections with other nodes
 class Node {
 	
 	String hashtagName;
@@ -22,15 +25,6 @@ class Node {
 		this.hashtagName = hashtagName;
 		connections = new HashMap<String, Node>();
 	}
-	void print(){
-		System.out.println("---------------");
-		System.out.println("Node Name: "+hashtagName);
-		for(Map.Entry entry : connections.entrySet()){
-			System.out.print(entry.getKey()+" ,");
-		}
-		System.out.println();
-		System.out.println("---------------");
-	}
 }
 
 class Graph {
@@ -39,23 +33,10 @@ class Graph {
 	Graph() {
 		nodes = new HashMap<String, Node>();
 	}
-	
-	void print(){
-		System.out.println("Graph");
-		System.out.println("-------------");
-		for(Map.Entry entry : nodes.entrySet()){
-			System.out.print(entry.getKey()+":");
-			Node node = (Node) entry.getValue();
-			HashMap<String, Node> map = node.connections;
-			for(Map.Entry entry1 : map.entrySet()){
-				System.out.print(entry1.getKey()+" ,");
-			}
-			System.out.println();
-		}
-		System.out.println("-------------");
-	}
+
 }
 
+//this tweet object stores the list of hashtags in the tweet. And it stores the time of the tweet in the form of Date object
 class Tweet {
 	ArrayList<String> hashtags;
 	Date time;
@@ -66,86 +47,52 @@ class Tweet {
 	}
 }
 
+//A custom comparator for the treeset data structure used in the project
 class Mycomparator implements Comparator<Tweet>{
 	public int compare(Tweet t1, Tweet t2){
-		return (int)average_degree.findTimeDiff(t1.time, t2.time);
+		if(average_degree.findTimeDiff(t1.time, t2.time)>=0){
+			return 1;
+		}else{
+			return -1;
+		}
 	}
 }
 
 public class average_degree {
 	public static void main(String args[]){
-		
-		ArrayList<Tweet> tweets = new ArrayList<Tweet>();
-		//ArrayList<String> htags1 = new ArrayList<String>();
-		//htags1.add("Spark");
-		//htags1.add("Apache");
-		//tweets.add(new Tweet(10, htags1));
-		//ArrayList<String> htags2 = new ArrayList<String>();
-		//htags2.add("Apache");
-		//htags2.add("Hadoop");
-		//htags2.add("Storm");
-		//tweets.add(new Tweet(15, htags2));
-		//ArrayList<String> htags3 = new ArrayList<String>();
-		//htags3.add("Apache");
-		//tweets.add(new Tweet(30, htags3));
-		//ArrayList<String> htags4 = new ArrayList<String>();
-		//htags4.add("Flink");
-		//htags4.add("Spark");
-		//tweets.add(new Tweet(55, htags4));
-		//ArrayList<String> htags5 = new ArrayList<String>();
-		//htags5.add("Spark");
-		//htags5.add("HBase");
-		//tweets.add(new Tweet(58, htags5));
-		//ArrayList<String> htags6 = new ArrayList<String>();
-		//htags6.add("Hadoop");
-		//htags6.add("Apache");
-		//tweets.add(new Tweet(72, htags6));
-		//ArrayList<String> htags7 = new ArrayList<String>();
-		//htags7.add("Flink");
-		//htags7.add("HBase");
-		//tweets.add(new Tweet(70, htags7));
-		//ArrayList<String> htags8 = new ArrayList<String>();
-		//htags8.add("Cassandra");
-		//htags8.add("NoSQL");
-		//tweets.add(new Tweet(10, htags8));
-		//ArrayList<String> htags9 = new ArrayList<String>();
-		//htags9.add("Kafka");
-		//htags9.add("Apache");
-		//tweets.add(new Tweet(80, htags9));
-		System.out.println(findDegrees());
+		//the function that takes input of tweets and computes the degrees and writes in the output file
+		findDegrees();
 	}
 	
-	public static ArrayList<Double> findDegrees(){
-		String outputFileName = "tweet_input/output.txt";
+	public static void findDegrees(){
+		String outputFileName = "tweet_output/output.txt";
 		BufferedReader br = null;
 		BufferedWriter bufferedWriter = null;
 		FileWriter fileWriter;
-		ArrayList<Double> degrees = new ArrayList<Double>();
 		try {
 			String jsonData = "";
-			
 			String line;
-			br = new BufferedReader(new FileReader("tweet_output/tweets.txt")); 
-            		fileWriter = new FileWriter(outputFileName);
-            		bufferedWriter = new BufferedWriter(fileWriter);
+			br = new BufferedReader(new FileReader("tweet_input/tweets.txt")); 
+            fileWriter = new FileWriter(outputFileName);
+            bufferedWriter = new BufferedWriter(fileWriter);
+            //a treeset data structure used to store the tweets in order of time
 			TreeSet<Tweet> currentTweets = new TreeSet<Tweet>(new Mycomparator());
+			//a hashmap used to store all the current(current means in 60 second window) hashtags in the graph as keys and the 
+			//node corresponding to each hashtag as value
 			HashMap<String, Node> currentHashTags = new HashMap<String, Node>();
+			//HashMap used to store all the current edges in graph and the value stores the count of edges though only one 
+			//edge is added in the graph
 			HashMap<String, Integer> currentEdges = new HashMap<String, Integer>();
+			//this the graph data structure i am using in this project
 			Graph graph = new Graph();
-			int loopCount=0;
-			int limitCount = 0;
+			//each line from the test is a tweet and is retrieved
 			while((line = br.readLine()) != null){
-				loopCount++;
-				System.out.println("loopCount is: "+loopCount);
-				System.out.println("limitCount: "+limitCount);
 				jsonData = line;
 				JSONObject obj = new JSONObject(jsonData);
 				if(obj.has("limit")) {
-					limitCount++;
 					continue;
 				}
 				String created_at = obj.getString("created_at");
-				System.out.println(created_at);
 				String[] timeArr = created_at.split(" ");
 				timeArr[4] = timeArr[4].replace("+", "");
 				Date date = new SimpleDateFormat("MMM", Locale.ENGLISH).parse(timeArr[1]);
@@ -158,7 +105,6 @@ public class average_degree {
 			    }else{
 			    	time = timeArr[5]+"/"+month+"/"+timeArr[2]+" "+timeArr[3]+":"+timeArr[4];
 			    }
-			    //System.out.println(time);
 			    SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss:SSSS");
 
 			    Date d1 = null;
@@ -169,44 +115,54 @@ public class average_degree {
 				ArrayList<String> hashtags = new ArrayList<String>();
 				for(int i=0; i<hashtagsArray.length(); i++){
 					JSONObject hashtagObject = hashtagsArray.getJSONObject(i);
-					hashtags.add(hashtagObject.getString("text"));
+					if(!hashtags.contains(hashtagObject.getString("text"))){
+						hashtags.add(hashtagObject.getString("text"));
+					}
 				}
-
-				System.out.println("Entered main loop");
+				//A tweet object is formed after retrieving the time and hashtags of json data
 				Tweet tweet = new Tweet(d1, hashtags);
-				System.out.println("currentTweets.size: "+currentTweets.size());
+				//if there are no current tweets, then the new tweet(the tweet just retieved from json) is added into the 
+				//currentTweets treeset and the hashtags are added to currentHashTags and edges are added to currentEdges. 
+				//The below if condition runs if there are current tweets
 				if(currentTweets.size() != 0){
-					System.out.println("tweet.time: "+tweet.time);
-					System.out.println("currentTweetsTime: "+currentTweets.last().time);
+					//findTimeDiff finds difference in times of two tweets
 					if(findTimeDiff(tweet.time, currentTweets.last().time)<0){
-						System.out.println("entered loop1");
-						//the tweet is out of order
-						if(findTimeDiff(currentTweets.last().time, tweet.time)<=60){
+						//the tweet is out of order. If the diff in time between 'out of order tweet' and the latest tweets
+						//is less than 60, then the 'out of order tweet' should be added to the graph
+						if(findTimeDiff(currentTweets.last().time, tweet.time)<60){
 							currentTweets.add(tweet);
 						}else{
-							computeDegree(graph, degrees, bufferedWriter);
+							//the current tweet should not be added to the graph
+							computeDegree(graph, bufferedWriter);
 							continue;
 						}
 					}else{
 						//the tweet is not out of order
-						System.out.println("entered loop2");
 						Iterator itr = currentTweets.iterator();
 						Tweet tempTweet;
-						while(itr.hasNext()&&(findTimeDiff(tweet.time, (tempTweet=(Tweet)itr.next()).time)>60)){
-							System.out.println("entered loop3");
+						//the below while loop is to evict the older tweets
+						while(itr.hasNext()&&(findTimeDiff(tweet.time, (tempTweet=(Tweet)itr.next()).time)>=60)){
 							ArrayList<String> hashTags = tempTweet.hashtags;
+							int forCount = 0;
+							//if the tweet of the iterator has less than 2 tags, then that means it has never been added to
+							//the graph, so it should just be removed from the current tweets
+							if(hashTags.size()<2) {
+								itr.remove();
+								continue;
+							}
 							for(int j=0; j<hashTags.size(); j++){
-								System.out.println("Entered remove loop");
 								Node fromNode = currentHashTags.get(hashTags.get(j));
-								fromNode.print();
 								for(int k=j+1; k<hashTags.size(); k++){
 									String forward = hashTags.get(j)+hashTags.get(k);
 									String reverse = hashTags.get(k)+hashTags.get(j);
 									boolean removeEdge = false;
+									//if the count of edge is more than one (that means the edge is repeated in other tweets of current tweets),
+									//then just decrement count, else remove the edge
 									if(currentEdges.containsKey(forward)){
 										int count = currentEdges.get(forward);
 										count--;
 										if(count == 0){
+											//remove the edge from current edges
 											currentEdges.remove(forward);
 											removeEdge = true;
 										}
@@ -214,31 +170,36 @@ public class average_degree {
 										int count = currentEdges.get(reverse);
 										count--;
 										if(count == 0){
+											//remove the edge from current edges
 											currentEdges.remove(reverse);
 											removeEdge = true;
 										}
 									}else{
 										//this part should not be reached
-										System.out.println("this part should not be reached");
 									}
 									if(removeEdge == true){
+										//remove the edges from the graph
 										Node toNode = currentHashTags.get(hashTags.get(k));
 										fromNode.connections.remove(hashTags.get(k));
 										toNode.connections.remove(hashTags.get(j));
 									}
 								}
-								fromNode.print();
+				
 								if(fromNode.connections.size()==0) {
-									//remove the node from the graph
+									//remove the node from the graph, if it has no connections
 									graph.nodes.remove(hashTags.get(j));
+									currentHashTags.remove(hashTags.get(j));
 								}
 								
 							}
+							//remove the tweet being iterated
 							itr.remove();
+							
 						}
 						currentTweets.add(tweet);
 					}
 				}else {
+					//add the new tweet
 					currentTweets.add(tweet);
 				}
 					//check if the hashtags of the tweets already exist in the graph. Create new nodes
@@ -246,7 +207,6 @@ public class average_degree {
 					ArrayList<String> hashTags = tweet.hashtags;
 					//Dont add if it to the graph is the only hashtag in the tweet
 					if(hashTags.size()>1) {
-						System.out.println(hashTags);
 						Node tempNode = null;
 						for(int j = 0; j< hashTags.size(); j++){
 							if(currentHashTags.get(hashTags.get(j)) != null){
@@ -254,6 +214,7 @@ public class average_degree {
 							}else{
 								
 								tempNode = new Node(hashTags.get(j));
+								//store the new nodes in currentHadhTags and graph
 								currentHashTags.put(hashTags.get(j), tempNode);
 								graph.nodes.put(hashTags.get(j),tempNode);
 							}
@@ -262,7 +223,7 @@ public class average_degree {
 						for(int j=0; j<hashTags.size(); j++){ 
 							Node fromNode = currentHashTags.get(hashTags.get(j));
 							for(int k=j+1; k<hashTags.size(); k++){
-								//to store in currentedges
+								//add the new edges formed by new tweet to currentedges
 								String forward = hashTags.get(j)+hashTags.get(k);
 								String reverse = hashTags.get(k)+hashTags.get(j);
 								
@@ -278,12 +239,10 @@ public class average_degree {
 									currentEdges.put(forward, 1);
 								}
 								Node toNode = currentHashTags.get(hashTags.get(k));
-								//check if there is already an edge
-								
+								//add the new edges to the grpah, if they don't exist before
 								if(!fromNode.connections.containsKey(hashTags.get(k))){
 									fromNode.connections.put(hashTags.get(k), toNode);
 								}
-								System.out.println(hashTags.get(j));
 					
 								if(!toNode.connections.containsKey(hashTags.get(j))){
 									toNode.connections.put(hashTags.get(j), fromNode);
@@ -292,10 +251,7 @@ public class average_degree {
 						}
 					}
 					//calculate the average degree of the graph
-					System.out.println("currentHashTags: "+currentHashTags);
-					graph.print();
-					computeDegree(graph, degrees, bufferedWriter);
-					System.out.println("degrees: "+degrees);
+					computeDegree(graph, bufferedWriter);
 			}
 			
 		}catch (IOException e) {
@@ -315,7 +271,6 @@ public class average_degree {
 				ex.printStackTrace();
 			}
 		}
-		System.out.println("degrees size: "+degrees.size());
 		try {
 			br.close();
 			bufferedWriter.close();
@@ -323,34 +278,32 @@ public class average_degree {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return degrees;
 	}
 	
-	public static void computeDegree(Graph graph, ArrayList<Double> degrees, BufferedWriter bw){
+	public static void computeDegree(Graph graph, BufferedWriter bw){
 		DecimalFormat d2 = new DecimalFormat("###.##");
 		d2.setRoundingMode(RoundingMode.DOWN);
 		int nodesCount = 0;
-		double degreeCount = 0;
+		double averageDegree = 0;
 		for(Map.Entry entry : graph.nodes.entrySet()){
 			nodesCount++;
 			HashMap<String, Node> edges = ((Node)entry.getValue()).connections;
-			degreeCount += edges.size();
+			averageDegree += edges.size();
 		}
-		if(nodesCount != 0) degreeCount /= (double)nodesCount;
-		System.out.println("degreeCount: "+degreeCount);
-		degreeCount = Double.valueOf(d2.format(degreeCount));
+		if(nodesCount != 0) averageDegree /= (double)nodesCount;
+		//truncating the average degree to two decimals
+		BigDecimal truncatedDegreeCount = new BigDecimal(String.valueOf(averageDegree)).setScale(2, BigDecimal.ROUND_FLOOR);
 		try {
-			bw.write(String.valueOf(degreeCount));
+			bw.write(String.valueOf(truncatedDegreeCount));
 			bw.write("\n");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		degrees.add(degreeCount);
 	}
 	
+	//function to find time difference between the times of two tweets
 	public static long findTimeDiff(Date d1, Date d2){
-		long diff = d2.getTime() - d1.getTime();
+		long diff = d1.getTime() - d2.getTime();
 	    long diffSeconds = diff / 1000;
 	    return diffSeconds;
 	}
